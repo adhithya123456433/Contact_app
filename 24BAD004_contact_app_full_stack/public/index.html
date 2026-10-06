@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Contact Management System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #dbeafe;
+      margin: 0;
+    }
+
+    h1 {
+      background-color: #1d4ed8;
+      color: white;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .box {
+      background-color: white;
+      width: 750px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 2px solid #1d4ed8;
+    }
+
+    h3 {
+      color: #1d4ed8;
+      margin-top: 0;
+    }
+
+    input {
+      padding: 8px;
+      margin: 5px 0;
+      width: 340px;
+      border: 1px solid #1d4ed8;
+    }
+
+    button {
+      padding: 8px 15px;
+      background-color: #1d4ed8;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+
+    button:hover {
+      background-color: #1e3a8a;
+    }
+
+    .delete {
+      background-color: red;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      background-color: #1d4ed8;
+      color: white;
+      padding: 8px;
+      text-align: left;
+    }
+
+    td {
+      padding: 8px;
+      border: 1px solid #93c5fd;
+    }
+
+    .message {
+      font-weight: bold;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Contact Management System</h1>
+
+  <div class="box">
+    <h3 id="formTitle">Add New Contact</h3>
+
+    <table>
+      <tr>
+        <td>Contact ID</td>
+        <td><input type="text" id="contactId" placeholder="C001"></td>
+      </tr>
+      <tr>
+        <td>Name</td>
+        <td><input type="text" id="name" placeholder="Enter name"></td>
+      </tr>
+      <tr>
+        <td>Phone</td>
+        <td><input type="text" id="phone" placeholder="10 digit number"></td>
+      </tr>
+      <tr>
+        <td>Email</td>
+        <td><input type="text" id="email" placeholder="example@gmail.com"></td>
+      </tr>
+    </table>
+
+    <button id="saveBtn" onclick="saveContact()">Add Contact</button>
+    <button onclick="clearForm()">Clear</button>
+
+    <p class="message" id="message"></p>
+  </div>
+
+  <div class="box">
+    <h3>All Contacts</h3>
+
+    <p class="message" id="message2"></p>
+
+    <table>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Action</th>
+      </tr>
+      <tbody id="contactTable"></tbody>
+    </table>
+  </div>
+
+  <script>
+    var url = "/contacts";
+    var editingId = null;
+
+    function showMessage(text, color) {
+      var msg = document.getElementById("message");
+      msg.innerHTML = text;
+      msg.style.color = color;
+    }
+
+    function showMessage2(text, color) {
+      var msg = document.getElementById("message2");
+      msg.innerHTML = text;
+      msg.style.color = color;
+    }
+
+    function loadContacts() {
+      fetch(url)
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (result) {
+          var contacts = result.data;
+          var rows = "";
+
+          for (var i = 0; i < contacts.length; i++) {
+            var c = contacts[i];
+            rows += "<tr>";
+            rows += "<td>" + c.contactId + "</td>";
+            rows += "<td>" + c.name + "</td>";
+            rows += "<td>" + c.phone + "</td>";
+            rows += "<td>" + c.email + "</td>";
+            rows += "<td>";
+            rows += "<button onclick=\"editContact('" + c.contactId + "')\">Edit</button> ";
+            rows += "<button class='delete' onclick=\"deleteContact('" + c.contactId + "')\">Delete</button>";
+            rows += "</td>";
+            rows += "</tr>";
+          }
+
+          document.getElementById("contactTable").innerHTML = rows;
+        });
+    }
+
+    function saveContact() {
+      var data = {
+        contactId: document.getElementById("contactId").value,
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        email: document.getElementById("email").value
+      };
+
+      var method = "POST";
+      var link = url;
+
+      if (editingId != null) {
+        method = "PUT";
+        link = url + "/" + editingId;
+        delete data.contactId;
+      }
+
+      fetch(link, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (result) {
+          if (result.success) {
+            clearForm();
+            showMessage("Contact saved successfully", "green");
+            loadContacts();
+          } else {
+            if (result.errors) {
+              showMessage(result.errors.join("<br>"), "red");
+            } else {
+              showMessage(result.message, "red");
+            }
+          }
+        });
+    }
+
+    function editContact(id) {
+      fetch(url + "/" + id)
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (result) {
+          var c = result.data;
+          document.getElementById("contactId").value = c.contactId;
+          document.getElementById("name").value = c.name;
+          document.getElementById("phone").value = c.phone;
+          document.getElementById("email").value = c.email;
+
+          document.getElementById("contactId").disabled = true;
+          document.getElementById("formTitle").innerHTML = "Update Contact";
+          document.getElementById("saveBtn").innerHTML = "Update Contact";
+          editingId = id;
+          window.scrollTo(0, 0);
+        });
+    }
+
+    function deleteContact(id) {
+      fetch(url + "/" + id, { method: "DELETE" })
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (result) {
+          if (result.success) {
+            showMessage2(result.message, "green");
+          } else {
+            showMessage2(result.message, "red");
+          }
+          loadContacts();
+        })
+        .catch(function (err) {
+          showMessage2("Delete failed: " + err.message, "red");
+        });
+    }
+
+    function clearForm() {
+      document.getElementById("contactId").value = "";
+      document.getElementById("name").value = "";
+      document.getElementById("phone").value = "";
+      document.getElementById("email").value = "";
+      document.getElementById("contactId").disabled = false;
+      document.getElementById("formTitle").innerHTML = "Add New Contact";
+      document.getElementById("saveBtn").innerHTML = "Add Contact";
+      editingId = null;
+      showMessage("", "black");
+    }
+
+    loadContacts();
+  </script>
+</body>
+</html>
